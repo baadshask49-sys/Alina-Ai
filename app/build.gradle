@@ -1,0 +1,4 @@
+plugins { id 'com.android.application' }
+android { namespace 'com.alina.ai'; compileSdk 35
+ defaultConfig { applicationId 'com.alina.ai'; minSdk 24; targetSdk 35; versionCode 3; versionName '3.0' }
+}
