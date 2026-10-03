@@ -1,4 +1,10 @@
-
+import android.content.Intent;
+import android.speech.tts.TextToSpeech;
+import android.app.AlertDialog;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 void reply(String q) {
     setState("thinking");
 
