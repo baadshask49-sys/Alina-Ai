@@ -38,6 +38,30 @@ public class MainActivity extends Activity {
         tts=new TextToSpeech(this, x -> { if(x==TextToSpeech.SUCCESS) tts.setLanguage(new Locale("hi","IN")); });
         home();
         setState("idle");
+        checkMicPermission();
+    }
+
+    void checkMicPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 23 &&
+            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                new String[]{android.Manifest.permission.RECORD_AUDIO}, 200);
+        } else {
+            handler.postDelayed(this::listen, 700);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 200 && grantResults.length > 0 &&
+            grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            handler.postDelayed(this::listen, 700);
+        } else if (requestCode == 200) {
+            status.setText("Boss, sunne ke liye microphone permission chahiye.");
+        }
     }
 
     void home(){
