@@ -209,16 +209,49 @@ public class MainActivity extends Activity {
 
     void reply(String q){
         setState("thinking");
-        new Handler().postDelayed(()->{
-            String s=q.toLowerCase(Locale.ROOT), ans;
-            if(s.contains("hello")||s.contains("hi")||s.contains("हाय")) ans="Hello Boss ❤️ Main Alina hoon. Aaj main aapki kya help karun?";
-            else if(s.contains("naam")||s.contains("name")) ans="Boss, mera naam Alina AI hai. 🐯";
-            else ans="Boss, aapne kaha: "+q+" ❤️";
-            response.setText(ans);
-            setState("speaking");
-            if(tts!=null) tts.speak(ans,TextToSpeech.QUEUE_FLUSH,null,"alina");
-            handler.postDelayed(this::stopSpeaking, Math.max(1800, ans.length()*65L));
-        },700);
+        String s = q.toLowerCase(Locale.ROOT).trim();
+        String ans = null;
+
+        if(s.contains("youtube")){
+            open("com.google.android.youtube","https://www.youtube.com");
+            ans = "Boss, YouTube khol rahi hoon.";
+        } else if(s.contains("whatsapp")){
+            open("com.whatsapp","https://www.whatsapp.com");
+            ans = "Boss, WhatsApp khol rahi hoon.";
+        } else if(s.contains("chrome")){
+            open("com.android.chrome","https://www.google.com");
+            ans = "Boss, Chrome khol rahi hoon.";
+        } else if(s.contains("camera") || s.contains("कैमरा")){
+            Intent i = new Intent("android.media.action.IMAGE_CAPTURE");
+            try { startActivity(i); ans = "Boss, camera khol rahi hoon."; }
+            catch(Exception e) { ans = "Boss, camera nahi khul paaya."; }
+        } else if(s.contains("gallery") || s.contains("photos") || s.contains("गैलरी")){
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setType("image/*");
+            try { startActivity(i); ans = "Boss, gallery khol rahi hoon."; }
+            catch(Exception e) { ans = "Boss, gallery nahi khul paayi."; }
+        } else if(s.contains("settings") || s.contains("सेटिंग")){
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
+                ans = "Boss, settings khol rahi hoon.";
+            } catch(Exception e) { ans = "Boss, settings nahi khul paayi."; }
+        } else if(s.contains("phone") || s.contains("dialer") || s.contains("फोन")){
+            try {
+                startActivity(new Intent(Intent.ACTION_DIAL));
+                ans = "Boss, phone khol rahi hoon.";
+            } catch(Exception e) { ans = "Boss, phone nahi khul paaya."; }
+        } else if(s.contains("hello") || s.equals("hi") || s.contains("हाय") || s.contains("नमस्ते")){
+            ans = "Namaste Boss, main Alina hoon. Bataiye, main aapki kya madad karun?";
+        } else if(s.contains("naam") || s.contains("name")){
+            ans = "Boss, mera naam Alina AI hai.";
+        } else {
+            ans = "Boss, aapne kaha: " + q;
+        }
+
+        response.setText(ans);
+        setState("speaking");
+        if(tts != null) tts.speak(ans, TextToSpeech.QUEUE_FLUSH, null, "alina");
+        handler.postDelayed(this::stopSpeaking, Math.max(1800, ans.length()*65L));
     }
 
     void open(String pkg,String fallback){ try{startActivity(getPackageManager().getLaunchIntentForPackage(pkg));}catch(Exception e){openWeb(fallback);} }
