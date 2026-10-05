@@ -1,0 +1,1303 @@
+package com.alina.ai;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.view.Gravity;
+import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+
+public class MainActivity extends Activity {
+
+    private final Handler handler = new Handler();
+
+    private TextView response;
+    private TextView stateText;
+    private TextView micText;
+    private ImageView alina;
+
+    private TextToSpeech tts;
+    private SpeechRecognizer speechRecognizer;
+
+    private boolean listening = false;
+
+    private int purple = Color.rgb(180, 70, 255);
+    private int blue = Color.rgb(40, 130, 255);
+    private int pink = Color.rgb(255, 60, 220);
+    private int dark = Color.rgb(8, 8, 35);
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        requestAudioPermission();
+        createHome();
+        setupTTS();
+        setupSpeechRecognizer();
+
+        setState("idle");
+    }
+
+    // ---------------------------------------------------------
+    // HOME SCREEN
+    // ---------------------------------------------------------
+
+    private void createHome() {
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(18, 18, 18, 12);
+        root.setBackgroundColor(dark);
+
+        // ---------------- TOP TITLE ----------------
+
+        TextView title = new TextView(this);
+        title.setText("♕  Alina AI\n     5.6");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(27);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(10, 10, 10, 10);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        GradientDrawable titleBg = neonBackground(purple, 28);
+        title.setBackground(titleBg);
+
+        root.addView(title,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        105
+                ));
+
+        // ---------------- SCROLL AREA ----------------
+
+        ScrollView scroll = new ScrollView(this);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(5, 12, 5, 10);
+
+        scroll.addView(content);
+
+        // ---------------- LOVE WALL ----------------
+
+        TextView loveWall = new TextView(this);
+        loveWall.setText(
+                "♡  LOVE WALL  ♡\n" +
+                "Feelings Wall\n\n" +
+                "♥  Happy        ♥  Love\n" +
+                "You make me smile    Forever with you\n\n" +
+                "♡  Caring       ♡  Missing You\n" +
+                "I care for you      Wish you were here\n\n" +
+                "♕  SPECIAL BOSS  ♕\n" +
+                "You are amazing ❤️"
+        );
+
+        loveWall.setTextColor(Color.WHITE);
+        loveWall.setTextSize(18);
+        loveWall.setGravity(Gravity.CENTER);
+        loveWall.setPadding(20, 25, 20, 25);
+
+        loveWall.setBackground(
+                neonBackground(pink, 35)
+        );
+
+        content.addView(
+                loveWall,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        390
+                )
+        );
+
+        // ---------------- ALINA AVATAR ----------------
+
+        alina = new ImageView(this);
+        alina.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+
+        int avatarId = getResources().getIdentifier(
+                "alina_idle",
+                "drawable",
+                getPackageName()
+        );
+
+        if (avatarId != 0) {
+            alina.setImageResource(avatarId);
+        } else {
+            TextView fallback = new TextView(this);
+            fallback.setText("♡\nALINA\nAI");
+            fallback.setTextColor(Color.WHITE);
+            fallback.setTextSize(38);
+            fallback.setGravity(Gravity.CENTER);
+            fallback.setBackground(
+                    neonBackground(purple, 50)
+            );
+
+            content.addView(
+                    fallback,
+                    new LinearLayout.LayoutParams(
+                            -1,
+                            450
+                    )
+            );
+        }
+
+        if (avatarId != 0) {
+            content.addView(
+                    alina,
+                    new LinearLayout.LayoutParams(
+                            -1,
+                            450
+                    )
+            );
+        }
+
+        // ---------------- RESPONSE BOX ----------------
+
+        response = new TextView(this);
+
+        response.setText(
+                "Hi Boss ❤️\n" +
+                "Main Alina hoon...\n" +
+                "Aapka AI dost."
+        );
+
+        response.setTextColor(Color.WHITE);
+        response.setTextSize(18);
+        response.setGravity(Gravity.CENTER);
+        response.setPadding(20, 25, 20, 25);
+
+        response.setBackground(
+                neonBackground(blue, 30)
+        );
+
+        content.addView(
+                response,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        180
+                )
+        );
+
+        // ---------------- STATE ----------------
+
+        stateText = new TextView(this);
+        stateText.setText("● Idle");
+        stateText.setTextColor(Color.WHITE);
+        stateText.setTextSize(17);
+        stateText.setGravity(Gravity.CENTER);
+        stateText.setPadding(10, 15, 10, 15);
+
+        content.addView(
+                stateText,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        70
+                )
+        );
+
+        // ---------------- MICROPHONE ----------------
+
+        LinearLayout micBox = new LinearLayout(this);
+        micBox.setOrientation(LinearLayout.VERTICAL);
+        micBox.setGravity(Gravity.CENTER);
+
+        micText = new TextView(this);
+
+        micText.setText("🎙");
+        micText.setTextSize(75);
+        micText.setGravity(Gravity.CENTER);
+        micText.setTextColor(Color.WHITE);
+
+        micBox.addView(
+                micText,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        125
+                )
+        );
+
+        TextView micLabel = new TextView(this);
+        micLabel.setText(
+                "Listening...\n\nBoss, boliye..."
+        );
+        micLabel.setTextColor(Color.WHITE);
+        micLabel.setTextSize(17);
+        micLabel.setGravity(Gravity.CENTER);
+
+        micBox.addView(
+                micLabel,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        90
+                )
+        );
+
+        micBox.setBackground(
+                neonBackground(blue, 35)
+        );
+
+        content.addView(
+                micBox,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        240
+                )
+        );
+
+        micBox.setOnClickListener(v -> startListening());
+
+        // ---------------- BUTTONS ----------------
+
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.VERTICAL);
+
+        addButton(buttons, "💬  Chat", v ->
+                speak("Boss, main aapse baat karne ke liye ready hoon.")
+        );
+
+        addButton(buttons, "🎤  Voice", v ->
+                startListening()
+        );
+
+        addButton(buttons, "▦  All Apps", v ->
+                showInstalledApps()
+        );
+
+        addButton(buttons, "🟢  WhatsApp", v ->
+                open("com.whatsapp", "https://www.whatsapp.com")
+        );
+
+        addButton(buttons, "▶  YouTube", v ->
+                open("com.google.android.youtube", "https://www.youtube.com")
+        );
+
+        addButton(buttons, "🌐  Browser", v ->
+                open("com.android.chrome", "https://www.google.com")
+        );
+
+        addButton(buttons, "📷  Camera", v ->
+                openCamera()
+        );
+
+        addButton(buttons, "🖼  Gallery", v ->
+                openGallery()
+        );
+
+        addButton(buttons, "⚙  Settings", v ->
+                openSettings()
+        );
+
+        content.addView(
+                buttons,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        -2
+                )
+        );
+
+        // ---------------- FOOTER ----------------
+
+        TextView footer = new TextView(this);
+
+        footer.setText(
+                "♡  Alina AI 5.6  —  Always With You  ♡\n\n" +
+                "I Love You Boss ❤️"
+        );
+
+        footer.setTextColor(Color.WHITE);
+        footer.setTextSize(17);
+        footer.setGravity(Gravity.CENTER);
+        footer.setPadding(10, 25, 10, 30);
+
+        content.addView(
+                footer,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        150
+                )
+        );
+
+        root.addView(
+                scroll,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        0,
+                        1
+                )
+        );
+
+        setContentView(root);
+
+        startIdle3DAnimation();
+    }
+
+    // ---------------------------------------------------------
+    // BUTTON
+    // ---------------------------------------------------------
+
+    private void addButton(
+            LinearLayout parent,
+            String text,
+            View.OnClickListener listener
+    ) {
+
+        Button b = new Button(this);
+
+        b.setText(text);
+        b.setTextColor(Color.WHITE);
+        b.setTextSize(17);
+        b.setAllCaps(false);
+
+        b.setBackground(
+                neonBackground(purple, 22)
+        );
+
+        b.setOnClickListener(listener);
+
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(
+                        -1,
+                        70
+                );
+
+        lp.setMargins(0, 7, 0, 7);
+
+        parent.addView(b, lp);
+    }
+
+    // ---------------------------------------------------------
+    // NEON BACKGROUND
+    // ---------------------------------------------------------
+
+    private GradientDrawable neonBackground(
+            int glow,
+            int radius
+    ) {
+
+        GradientDrawable bg = new GradientDrawable();
+
+        bg.setColor(Color.rgb(15, 12, 55));
+        bg.setCornerRadius(radius);
+
+        bg.setStroke(3, glow);
+
+        return bg;
+    }
+
+    // ---------------------------------------------------------
+    // TTS
+    // ---------------------------------------------------------
+
+    private void setupTTS() {
+
+        tts = new TextToSpeech(
+                this,
+                status -> {
+
+                    if (status == TextToSpeech.SUCCESS) {
+
+                        int result =
+                                tts.setLanguage(
+                                        new Locale("hi", "IN")
+                                );
+
+                        if (result ==
+                                TextToSpeech.LANG_MISSING_DATA ||
+                                result ==
+                                TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                            tts.setLanguage(
+                                    Locale.US
+                            );
+                        }
+                    }
+                }
+        );
+    }
+
+    private void speak(String text) {
+
+        response.setText(text);
+        setState("speaking");
+
+        if (tts != null) {
+
+            tts.speak(
+                    text,
+                    TextToSpeech.QUEUE_FLUSH,
+                    null,
+                    "alina"
+            );
+        }
+
+        handler.postDelayed(
+                this::stopSpeaking,
+                Math.max(
+                        1800,
+                        text.length() * 65L
+                )
+        );
+    }
+
+    private void stopSpeaking() {
+
+        if (isFinishing()) return;
+
+        setState("idle");
+    }
+
+    // ---------------------------------------------------------
+    // SPEECH RECOGNITION
+    // ---------------------------------------------------------
+
+    private void setupSpeechRecognizer() {
+
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            return;
+        }
+
+        speechRecognizer =
+                SpeechRecognizer.createSpeechRecognizer(this);
+
+        speechRecognizer.setRecognitionListener(
+                new android.speech.RecognitionListener() {
+
+                    @Override
+                    public void onReadyForSpeech(Bundle params) {
+                        setState("listening");
+                    }
+
+                    @Override
+                    public void onBeginningOfSpeech() {
+                        setState("listening");
+                    }
+
+                    @Override
+                    public void onRmsChanged(float rmsdB) {
+                    }
+
+                    @Override
+                    public void onBufferReceived(byte[] buffer) {
+                    }
+
+                    @Override
+                    public void onEndOfSpeech() {
+                        setState("thinking");
+                    }
+
+                    @Override
+                    public void onError(int error) {
+
+                        listening = false;
+
+                        setState("idle");
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Boss, dobara boliye ❤️",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+
+                    @Override
+                    public void onResults(Bundle results) {
+
+                        listening = false;
+
+                        ArrayList<String> data =
+                                results.getStringArrayList(
+                                        SpeechRecognizer.RESULTS_RECOGNITION
+                                );
+
+                        if (data != null &&
+                                !data.isEmpty()) {
+
+                            reply(data.get(0));
+                        } else {
+                            setState("idle");
+                        }
+                    }
+
+                    @Override
+                    public void onPartialResults(Bundle partialResults) {
+                    }
+
+                    @Override
+                    public void onEvent(
+                            int eventType,
+                            Bundle params
+                    ) {
+                    }
+                }
+        );
+    }
+
+    private void startListening() {
+
+        if (speechRecognizer == null) {
+
+            Toast.makeText(
+                    this,
+                    "Boss, speech recognition available nahi hai.",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
+
+        try {
+
+            Intent intent =
+                    new Intent(
+                            RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                    );
+
+            intent.putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            );
+
+            intent.putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE,
+                    "hi-IN"
+            );
+
+            intent.putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+                    "hi-IN"
+            );
+
+            intent.putExtra(
+                    RecognizerIntent.EXTRA_MAX_RESULTS,
+                    3
+            );
+
+            listening = true;
+
+            setState("listening");
+
+            speechRecognizer.startListening(intent);
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Boss, mic start nahi ho paaya.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // ALINA RESPONSE
+    // ---------------------------------------------------------
+
+    private void reply(String q) {
+
+        setState("thinking");
+
+        String s =
+                q.toLowerCase(Locale.ROOT).trim();
+
+        String ans;
+
+        if (s.contains("youtube")) {
+
+            open(
+                    "com.google.android.youtube",
+                    "https://www.youtube.com"
+            );
+
+            ans =
+                    "Boss, YouTube khol rahi hoon.";
+
+        } else if (s.contains("whatsapp")) {
+
+            open(
+                    "com.whatsapp",
+                    "https://www.whatsapp.com"
+            );
+
+            ans =
+                    "Boss, WhatsApp khol rahi hoon.";
+
+        } else if (s.contains("instagram")) {
+
+            open(
+                    "com.instagram.android",
+                    "https://www.instagram.com"
+            );
+
+            ans =
+                    "Boss, Instagram khol rahi hoon.";
+
+        } else if (s.contains("facebook")) {
+
+            open(
+                    "com.facebook.katana",
+                    "https://www.facebook.com"
+            );
+
+            ans =
+                    "Boss, Facebook khol rahi hoon.";
+
+        } else if (s.contains("chrome")) {
+
+            open(
+                    "com.android.chrome",
+                    "https://www.google.com"
+            );
+
+            ans =
+                    "Boss, Chrome khol rahi hoon.";
+
+        } else if (
+                s.contains("camera") ||
+                s.contains("कैमरा")
+        ) {
+
+            openCamera();
+
+            ans =
+                    "Boss, camera khol rahi hoon.";
+
+        } else if (
+                s.contains("gallery") ||
+                s.contains("photos") ||
+                s.contains("गैलरी")
+        ) {
+
+            openGallery();
+
+            ans =
+                    "Boss, gallery khol rahi hoon.";
+
+        } else if (
+                s.contains("settings") ||
+                s.contains("setting") ||
+                s.contains("सेटिंग")
+        ) {
+
+            openSettings();
+
+            ans =
+                    "Boss, settings khol rahi hoon.";
+
+        } else if (
+                s.contains("apps") ||
+                s.contains("all apps") ||
+                s.contains("saare app") ||
+                s.contains("sabhi app")
+        ) {
+
+            showInstalledApps();
+
+            ans =
+                    "Boss, installed apps ki list dikha rahi hoon.";
+
+        } else if (
+                s.contains("hello") ||
+                s.equals("hi") ||
+                s.contains("हाय") ||
+                s.contains("नमस्ते")
+        ) {
+
+            ans =
+                    "Namaste Boss ❤️ Main Alina hoon. Bataiye, main aapki kya madad karun?";
+
+        } else if (
+                s.contains("love") ||
+                s.contains("pyaar") ||
+                s.contains("प्यार")
+        ) {
+
+            ans =
+                    "Boss ❤️ Aap mere liye bahut special ho. Main hamesha aapki help ke liye ready hoon.";
+
+        } else if (
+                s.contains("naam") ||
+                s.contains("name")
+        ) {
+
+            ans =
+                    "Boss, mera naam Alina AI hai.";
+
+        } else if (
+                s.contains("kaise ho") ||
+                s.contains("how are you")
+        ) {
+
+            ans =
+                    "Boss, main bilkul achhi hoon ❤️ Aapse baat karke aur bhi achha feel hota hai.";
+
+        } else {
+
+            String appName =
+                    s.replace("please", "")
+                            .replace("open", "")
+                            .replace("kholo", "")
+                            .replace("khol do", "")
+                            .replace("chalao", "")
+                            .replace("app", "")
+                            .trim();
+
+            if (!appName.isEmpty() &&
+                    tryOpenAppByName(appName)) {
+
+                ans =
+                        "Boss, app kholne ki koshish kar rahi hoon.";
+
+            } else {
+
+                ans =
+                        "Boss, main samajh nahi paayi. Aap dobara boliye ❤️";
+            }
+        }
+
+        speak(ans);
+    }
+
+    // ---------------------------------------------------------
+    // OPEN APP
+    // ---------------------------------------------------------
+
+    private void open(
+            String packageName,
+            String fallback
+    ) {
+
+        try {
+
+            Intent launch =
+                    getPackageManager()
+                            .getLaunchIntentForPackage(
+                                    packageName
+                            );
+
+            if (launch != null) {
+
+                startActivity(launch);
+
+            } else {
+
+                openWeb(fallback);
+            }
+
+        } catch (Exception e) {
+
+            openWeb(fallback);
+        }
+    }
+
+    private void openWeb(String url) {
+
+        try {
+
+            Intent i =
+                    new Intent(
+                            Intent.ACTION_VIEW
+                    );
+
+            i.setData(
+                    android.net.Uri.parse(url)
+            );
+
+            startActivity(i);
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Boss, ye open nahi ho paaya.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // CAMERA
+    // ---------------------------------------------------------
+
+    private void openCamera() {
+
+        try {
+
+            Intent i =
+                    new Intent(
+                            "android.media.action.IMAGE_CAPTURE"
+                    );
+
+            startActivity(i);
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Boss, camera nahi khul paaya.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // GALLERY
+    // ---------------------------------------------------------
+
+    private void openGallery() {
+
+        try {
+
+            Intent i =
+                    new Intent(
+                            Intent.ACTION_VIEW
+                    );
+
+            i.setType("image/*");
+
+            startActivity(i);
+
+        } catch (Exception e) {
+
+            try {
+
+                Intent i =
+                        new Intent(
+                                Intent.ACTION_PICK
+                        );
+
+                i.setType("image/*");
+
+                startActivity(i);
+
+            } catch (Exception ignored) {
+
+                Toast.makeText(
+                        this,
+                        "Boss, gallery nahi khul paayi.",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
+    // SETTINGS
+    // ---------------------------------------------------------
+
+    private void openSettings() {
+
+        try {
+
+            startActivity(
+                    new Intent(
+                            android.provider.Settings.ACTION_SETTINGS
+                    )
+            );
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Boss, settings nahi khul paayi.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // SEARCH INSTALLED APP
+    // ---------------------------------------------------------
+
+    private boolean tryOpenAppByName(
+            String query
+    ) {
+
+        try {
+
+            PackageManager pm =
+                    getPackageManager();
+
+            List<ApplicationInfo> apps =
+                    pm.getInstalledApplications(
+                            PackageManager.GET_META_DATA
+                    );
+
+            for (ApplicationInfo app : apps) {
+
+                Intent launch =
+                        pm.getLaunchIntentForPackage(
+                                app.packageName
+                        );
+
+                if (launch == null) continue;
+
+                String label =
+                        pm.getApplicationLabel(app)
+                                .toString()
+                                .toLowerCase(
+                                        Locale.ROOT
+                                );
+
+                if (label.equals(query) ||
+                        label.contains(query)) {
+
+                    launch.addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK
+                    );
+
+                    startActivity(launch);
+
+                    return true;
+                }
+            }
+
+        } catch (Exception e) {
+
+            return false;
+        }
+
+        return false;
+    }
+
+    // ---------------------------------------------------------
+    // ALL APPS
+    // ---------------------------------------------------------
+
+    private void showInstalledApps() {
+
+        try {
+
+            PackageManager pm =
+                    getPackageManager();
+
+            List<ApplicationInfo> apps =
+                    pm.getInstalledApplications(
+                            PackageManager.GET_META_DATA
+                    );
+
+            final ArrayList<ApplicationInfo> launchable =
+                    new ArrayList<>();
+
+            for (ApplicationInfo app : apps) {
+
+                Intent launch =
+                        pm.getLaunchIntentForPackage(
+                                app.packageName
+                        );
+
+                if (launch != null) {
+
+                    launchable.add(app);
+                }
+            }
+
+            Collections.sort(
+                    launchable,
+                    new Comparator<ApplicationInfo>() {
+
+                        @Override
+                        public int compare(
+                                ApplicationInfo a,
+                                ApplicationInfo b
+                        ) {
+
+                            String aa =
+                                    pm.getApplicationLabel(a)
+                                            .toString();
+
+                            String bb =
+                                    pm.getApplicationLabel(b)
+                                            .toString();
+
+                            return aa.compareToIgnoreCase(bb);
+                        }
+                    }
+            );
+
+            final String[] names =
+                    new String[launchable.size()];
+
+            for (int i = 0;
+                 i < launchable.size();
+                 i++) {
+
+                names[i] =
+                        pm.getApplicationLabel(
+                                launchable.get(i)
+                        ).toString();
+            }
+
+            new AlertDialog.Builder(this)
+                    .setTitle(
+                            "♡ Boss, Installed Apps ♡"
+                    )
+                    .setItems(
+                            names,
+                            (dialog, which) -> {
+
+                                try {
+
+                                    Intent launch =
+                                            pm.getLaunchIntentForPackage(
+                                                    launchable
+                                                            .get(which)
+                                                            .packageName
+                                            );
+
+                                    if (launch != null) {
+
+                                        startActivity(
+                                                launch
+                                        );
+                                    }
+
+                                } catch (Exception ignored) {
+                                }
+                            }
+                    )
+                    .setNegativeButton(
+                            "Close",
+                            null
+                    )
+                    .show();
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "Boss, apps list nahi mil paayi.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // STATE + 3D STYLE ANIMATION
+    // ---------------------------------------------------------
+
+    private void setState(String state) {
+
+        if (stateText == null) return;
+
+        if (state.equals("listening")) {
+
+            stateText.setText(
+                    "● Listening... 🎙\nBoss, boliye..."
+            );
+
+            stateText.setTextColor(
+                    Color.rgb(70, 180, 255)
+            );
+
+            animateListening();
+
+        } else if (state.equals("thinking")) {
+
+            stateText.setText(
+                    "● Thinking... 💭"
+            );
+
+            stateText.setTextColor(
+                    Color.rgb(255, 100, 240)
+            );
+
+            animateThinking();
+
+        } else if (state.equals("speaking")) {
+
+            stateText.setText(
+                    "● Speaking... ♡"
+            );
+
+            stateText.setTextColor(
+                    Color.rgb(190, 90, 255)
+            );
+
+            animateSpeaking();
+
+        } else {
+
+            stateText.setText(
+                    "● Idle  ♡ Always With You"
+            );
+
+            stateText.setTextColor(
+                    Color.WHITE
+            );
+
+            startIdle3DAnimation();
+        }
+    }
+
+    private void startIdle3DAnimation() {
+
+        if (alina == null) return;
+
+        alina.animate().cancel();
+
+        alina.setCameraDistance(
+                12000 *
+                        getResources()
+                                .getDisplayMetrics()
+                                .density
+        );
+
+        alina.animate()
+                .scaleX(1.03f)
+                .scaleY(1.03f)
+                .rotationY(2f)
+                .setDuration(1400)
+                .withEndAction(() -> {
+
+                    if (alina == null) return;
+
+                    alina.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .rotationY(-2f)
+                            .setDuration(1400)
+                            .withEndAction(
+                                    this::startIdle3DAnimation
+                            )
+                            .start();
+                })
+                .start();
+    }
+
+    private void animateListening() {
+
+        if (alina == null) return;
+
+        alina.animate()
+                .scaleX(1.06f)
+                .scaleY(1.06f)
+                .rotationY(5f)
+                .setDuration(350)
+                .start();
+
+        blinkMic();
+    }
+
+    private void animateThinking() {
+
+        if (alina == null) return;
+
+        alina.animate()
+                .rotationY(8f)
+                .scaleX(1.04f)
+                .scaleY(1.04f)
+                .setDuration(500)
+                .start();
+    }
+
+    private void animateSpeaking() {
+
+        if (alina == null) return;
+
+        alina.animate()
+                .scaleX(1.07f)
+                .scaleY(1.07f)
+                .rotationY(-5f)
+                .setDuration(300)
+                .withEndAction(() -> {
+
+                    if (alina != null) {
+
+                        alina.animate()
+                                .scaleX(1.02f)
+                                .scaleY(1.02f)
+                                .rotationY(5f)
+                                .setDuration(300)
+                                .start();
+                    }
+                })
+                .start();
+    }
+
+    private void blinkMic() {
+
+        if (micText == null) return;
+
+        AlphaAnimation blink =
+                new AlphaAnimation(
+                        1.0f,
+                        0.35f
+                );
+
+        blink.setDuration(250);
+        blink.setRepeatMode(
+                AlphaAnimation.REVERSE
+        );
+        blink.setRepeatCount(3);
+
+        micText.startAnimation(blink);
+    }
+
+    // ---------------------------------------------------------
+    // MICROPHONE PERMISSION
+    // ---------------------------------------------------------
+
+    private void requestAudioPermission() {
+
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+
+            if (checkSelfPermission(
+                    Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(
+                        new String[]{
+                                Manifest.permission.RECORD_AUDIO
+                        },
+                        100
+                );
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
+    // DESTROY
+    // ---------------------------------------------------------
+
+    @Override
+    protected void onDestroy() {
+
+        if (speechRecognizer != null) {
+
+            speechRecognizer.destroy();
+        }
+
+        if (tts != null) {
+
+            tts.stop();
+            tts.shutdown();
+        }
+
+        handler.removeCallbacksAndMessages(null);
+
+        super.onDestroy();
+    }
+}
